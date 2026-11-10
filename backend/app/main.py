@@ -1,0 +1,45 @@
+from contextlib import asynccontextmanager
+from pathlib import Path
+from typing import AsyncIterator
+
+from fastapi import FastAPI
+
+from app.database import Base, create_database
+from app.routers import addresses, cart, orders, products, session
+from app.seed import seed_database
+
+DATABASE_URL = f"sqlite:///{Path(__file__).resolve().parents[1] / 'shopping.db'}"
+engine, session_factory = create_database(DATABASE_URL)
+
+
+def create_app(database_url: str | None = None) -> FastAPI:
+    active_engine, active_session_factory = (
+        create_database(database_url) if database_url else (engine, session_factory)
+    )
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        Base.metadata.create_all(active_engine)
+        with active_session_factory() as db:
+            seed_database(db)
+        yield
+        if database_url:
+            active_engine.dispose()
+
+    app = FastAPI(title="Shopping Demo API", lifespan=lifespan)
+    app.include_router(products.router)
+    app.include_router(session.router)
+    app.include_router(addresses.router)
+    app.include_router(cart.router)
+    app.include_router(orders.router)
+
+    @app.get("/health")
+    def health() -> dict[str, str]:
+        return {"status": "ok"}
+
+    app.state.engine = active_engine
+    app.state.session_factory = active_session_factory
+    return app
+
+
+app = create_app()
