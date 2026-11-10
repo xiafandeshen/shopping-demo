@@ -29,5 +29,14 @@ async def test_search_has_empty_state_for_unknown_term(client):
 
 
 @pytest.mark.anyio
+async def test_search_returns_products_for_chinese_keyword(client):
+    response = await client.get("/api/products", params={"q": "耳", "page": 1, "page_size": 20})
+
+    assert response.status_code == 200
+    assert response.json()["total"] > 0
+    assert response.json()["items"]
+
+
+@pytest.mark.anyio
 async def test_unknown_product_returns_404(client):
     assert (await client.get("/api/products/missing")).status_code == 404

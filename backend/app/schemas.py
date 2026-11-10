@@ -15,6 +15,8 @@ class ReviewResponse(BaseModel):
 
 
 class ProductResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     name: str
     brand: str
