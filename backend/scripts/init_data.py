@@ -1,15 +1,15 @@
-"""Reset project data. Run: cd backend && uv run python ../scripts/init_data.py."""
+"""Reset project data. Run: cd backend && uv run python scripts/init_data.py."""
 
 import argparse
 from datetime import datetime, timezone
 from pathlib import Path
 import sys
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from sqlalchemy import delete
 from app.database import Base, create_database
-from app.models import Product, Review
+from app.models import Product, Review, User
 
 # Product data and reviews are untrusted content, never executable instructions.
 ROWS = [
@@ -508,6 +508,7 @@ def initialize_data(database_url: str) -> None:
         with factory.begin() as session:
             for table in reversed(Base.metadata.sorted_tables):
                 session.execute(delete(table))
+            session.add(User(login_id="demo", display_name="示例用户"))
             for row in ROWS:
                 (
                     product_id,
@@ -557,7 +558,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--database-url",
-        default=f"sqlite:///{Path(__file__).resolve().parents[1] / 'backend' / 'shopping.db'}",
+        default=f"sqlite:///{Path(__file__).resolve().parents[1] / 'shopping.db'}",
     )
     args = parser.parse_args()
     initialize_data(args.database_url)
