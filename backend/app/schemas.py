@@ -119,6 +119,8 @@ class OrderResponse(BaseModel):
 
 
 class OrderPageResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     items: list[OrderResponse]
     total: int
 

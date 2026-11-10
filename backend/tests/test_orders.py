@@ -37,6 +37,23 @@ async def test_create_order_and_pay(logged_in_client):
 
 
 @pytest.mark.anyio
+async def test_list_orders_returns_orm_orders(logged_in_client):
+    client = logged_in_client
+    address = (await client.post(
+        "/api/addresses",
+        json={"recipient": "Lin", "phone": "12345678", "region": "台北", "detail": "中山路 1 號"},
+    )).json()
+    await client.post("/api/cart/items", json={"product_id": "P001", "quantity": 1})
+    assert (await client.post("/api/orders", json={"address_id": address["id"]})).status_code == 201
+
+    response = await client.get("/api/orders?page=1")
+
+    assert response.status_code == 200
+    assert response.json()["total"] == 1
+    assert response.json()["items"][0]["items"][0]["product_name"] == "Aero 無線藍牙耳機"
+
+
+@pytest.mark.anyio
 async def test_order_status_actions(logged_in_client):
     client = logged_in_client
     address = (await client.post(

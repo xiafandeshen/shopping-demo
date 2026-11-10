@@ -106,7 +106,10 @@ def list_orders(
         .offset((page - 1) * page_size)
         .limit(page_size)
     ).all()
-    return OrderPageResponse(items=orders, total=total)
+    return OrderPageResponse(
+        items=[OrderResponse.model_validate(order, from_attributes=True) for order in orders],
+        total=total,
+    )
 
 
 @router.get("/{order_id}", response_model=OrderResponse)
