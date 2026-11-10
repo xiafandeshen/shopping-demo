@@ -17,7 +17,8 @@ export function PaymentPage() {
     });
     const pay = useMutation({
         mutationFn: () => payOrder(id),
-        onSuccess: async () => {
+        onSuccess: async (updated) => {
+            queryClient.setQueryData(["order", id], updated);
             await queryClient.invalidateQueries({ queryKey: ["orders"] });
             navigate(`/orders/${id}`);
         },

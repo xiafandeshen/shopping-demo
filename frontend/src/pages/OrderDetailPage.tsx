@@ -41,7 +41,7 @@ export function OrderDetailPage() {
                         </h2>
                     </div>
                 </div>
-                <OrderActions order={data} />
+                <OrderActions order={data} showDetailLink={false} />
             </section>
             <section className="detail-section">
                 <div className="section-heading">

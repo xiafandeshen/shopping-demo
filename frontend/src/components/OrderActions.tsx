@@ -5,9 +5,9 @@ import { actOnOrder } from "../api/orders";
 import { getErrorMessage } from "../api/client";
 import type { Order } from "../types";
 
-type Props = { order: Order };
+type Props = { order: Order; showDetailLink?: boolean };
 
-export function OrderActions({ order }: Props) {
+export function OrderActions({ order, showDetailLink = true }: Props) {
     const queryClient = useQueryClient();
     const [notice, setNotice] = useState("");
     const action = useMutation({
@@ -28,11 +28,11 @@ export function OrderActions({ order }: Props) {
             });
         },
     });
-    const detail = (
+    const detail = showDetailLink ? (
         <Link className="secondary-button" to={`/orders/${order.id}`}>
             查看详情
         </Link>
-    );
+    ) : null;
     const button = (label: string, value: string, destructive = false) => (
         <button
             className={destructive ? "danger-button" : "secondary-button"}
