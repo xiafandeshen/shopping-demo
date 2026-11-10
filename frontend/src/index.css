@@ -475,10 +475,12 @@ img {
     padding: 0 5px;
     border: 2px solid var(--background);
     border-radius: 12px;
-    background: #cf704d;
+    background: #d9363e;
     color: #fff;
-    font-width: 11px;
-    height: 11px;
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 700;
+    white-space: nowrap;
 }
 .site-footer {
     display: flex;
@@ -708,8 +710,9 @@ img {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    font-width: 12px;
-    height: 12px;
+    min-height: 38px;
+    font-size: 12px;
+    line-height: 1.45;
 }
 .order-card-head > div span {
     color: var(--muted-foreground);
@@ -954,6 +957,20 @@ img {
     flex-direction: column;
     gap: 18px;
 }
+.form-stack .field {
+    min-width: 0;
+    height: auto;
+    font-size: 13px;
+    line-height: 1.4;
+}
+.form-stack .field label {
+    position: static;
+    display: block;
+    line-height: 1.4;
+}
+.form-stack .field input {
+    width: 100%;
+}
 .form-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -964,8 +981,8 @@ img {
     flex-direction: column;
     gap: 7px;
     color: #35443b;
-    font-width: 13px;
-    height: 13px;
+    font-size: 13px;
+    line-height: 1.4;
 }
 .field b {
     color: var(--destructive);
