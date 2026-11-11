@@ -59,10 +59,6 @@ export function HomePage() {
             </button>
           </div>
         </div>
-        <div className="banner-index">
-          <strong>01</strong>
-          <span>精选日常</span>
-        </div>
       </section>
       <section className="page-section mx-auto max-w-7xl px-5">
         <div className="section-heading">
