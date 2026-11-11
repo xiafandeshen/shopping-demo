@@ -14,6 +14,7 @@ vi.mock("../api/session", () => ({
 }));
 vi.mock("../api/assistant", () => ({
     getConversation: vi.fn().mockResolvedValue({ messages: [] }),
+    createConversation: vi.fn(),
     sendAssistantMessage: vi.fn(),
 }));
 
