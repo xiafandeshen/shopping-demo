@@ -13,3 +13,8 @@ export const payOrder = async (id: string) =>
     (await api.post(`/orders/${id}/pay`)).data as Order;
 export const actOnOrder = async (id: string, action: string) =>
     (await api.post(`/orders/${id}/actions`, { action })).data as Order;
+
+export const addOrderAddress = async (
+    id: string,
+    address: Record<string, string>,
+) => (await api.put(`/orders/${id}/address`, address)).data as Order;

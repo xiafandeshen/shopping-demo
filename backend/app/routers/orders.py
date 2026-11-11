@@ -7,7 +7,13 @@ from sqlalchemy.orm import Session, selectinload
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import Address, CartItem, Order, OrderItem, OrderStatus, User
-from app.schemas import OrderActionRequest, OrderCreateRequest, OrderPageResponse, OrderResponse
+from app.schemas import (
+    AddressCreate,
+    OrderActionRequest,
+    OrderCreateRequest,
+    OrderPageResponse,
+    OrderResponse,
+)
 from app.services.pricing import calculate_totals
 
 router = APIRouter(prefix="/api/orders", tags=["orders"])
@@ -42,7 +48,9 @@ def create_order(
     db: Session = Depends(get_db),
 ) -> Order:
     address = db.scalar(
-        select(Address).where(Address.id == payload.address_id, Address.user_id == user.id)
+        select(Address).where(
+            Address.id == payload.address_id, Address.user_id == user.id
+        )
     )
     if address is None:
         raise HTTPException(status_code=404, detail="收货地址不存在")
@@ -97,7 +105,12 @@ def list_orders(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> OrderPageResponse:
-    total = db.scalar(select(func.count()).select_from(Order).where(Order.user_id == user.id)) or 0
+    total = (
+        db.scalar(
+            select(func.count()).select_from(Order).where(Order.user_id == user.id)
+        )
+        or 0
+    )
     orders = db.scalars(
         select(Order)
         .options(selectinload(Order.items))
@@ -107,7 +120,10 @@ def list_orders(
         .limit(page_size)
     ).all()
     return OrderPageResponse(
-        items=[OrderResponse.model_validate(order, from_attributes=True) for order in orders],
+        items=[
+            OrderResponse.model_validate(order, from_attributes=True)
+            for order in orders
+        ],
         total=total,
     )
 
@@ -149,3 +165,18 @@ def pay_order(
     order.status = OrderStatus.PAID_PENDING_SHIPMENT.value
     db.commit()
     return _get_order(db, user.id, order.id)
+
+
+@router.put("/{order_id}/address", response_model=OrderResponse)
+def add_order_address(
+    order_id: str,
+    payload: AddressCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Order:
+    order = _get_order(db, user.id, order_id)
+    if order.address_snapshot:
+        raise HTTPException(status_code=409, detail="订单已填写收货地址")
+    order.address_snapshot = payload.model_dump(exclude={"is_default"})
+    db.commit()
+    return _get_order(db, user.id, order_id)

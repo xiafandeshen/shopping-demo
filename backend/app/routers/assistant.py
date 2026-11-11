@@ -61,8 +61,12 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "create_order",
-            "description": "按默认地址创建AI优惠订单并生成支付链接",
-            "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
+            "description": "创建AI优惠订单并生成支付链接；无地址也可下单，之后在订单详情补填",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": False,
+            },
         },
     },
     {
@@ -70,20 +74,22 @@ TOOLS = [
         "function": {
             "name": "pay_order",
             "description": "仅当顾客明确授权直接付款时支付刚创建的订单",
-            "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": False,
+            },
         },
     },
 ]
 
 
-def _address(db: Session, user_id: int) -> Address:
+def _address(db: Session, user_id: int) -> Address | None:
     address = db.scalar(
         select(Address)
         .where(Address.user_id == user_id)
         .order_by(Address.is_default.desc(), Address.id)
     )
-    if address is None:
-        raise HTTPException(status_code=400, detail="请先添加收货地址，再使用购物助手创建订单")
     return address
 
 
@@ -102,12 +108,16 @@ def _create_order(db: Session, user: User) -> Order:
     order = Order(
         id=secrets.token_hex(16),
         user_id=user.id,
-        address_snapshot={
-            "recipient": address.recipient,
-            "phone": address.phone,
-            "region": address.region,
-            "detail": address.detail,
-        },
+        address_snapshot=(
+            {
+                "recipient": address.recipient,
+                "phone": address.phone,
+                "region": address.region,
+                "detail": address.detail,
+            }
+            if address
+            else {}
+        ),
         source="ai",
         status=OrderStatus.PENDING_PAYMENT.value,
         subtotal=totals.subtotal,
@@ -143,11 +153,16 @@ def _create_order(db: Session, user: User) -> Order:
 
 
 @router.get("/conversation", response_model=AssistantMessageResponse)
-def get_conversation(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def get_conversation(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
     cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
     conversation = db.scalar(
         select(AssistantConversation)
-        .where(AssistantConversation.user_id == user.id, AssistantConversation.updated_at >= cutoff)
+        .where(
+            AssistantConversation.user_id == user.id,
+            AssistantConversation.updated_at >= cutoff,
+        )
         .order_by(AssistantConversation.updated_at.desc())
     )
     messages = conversation.messages if conversation else []
@@ -159,7 +174,9 @@ def get_conversation(user: User = Depends(get_current_user), db: Session = Depen
 
 
 @router.post("/conversations", response_model=AssistantMessageResponse)
-def create_conversation(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def create_conversation(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
     conversation = AssistantConversation(user_id=user.id, messages=[])
     db.add(conversation)
     db.commit()
@@ -180,7 +197,9 @@ async def chat(
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(hours=24)
     conversation = (
-        db.get(AssistantConversation, payload.conversation_id) if payload.conversation_id else None
+        db.get(AssistantConversation, payload.conversation_id)
+        if payload.conversation_id
+        else None
     )
     if conversation and conversation.user_id != user.id:
         conversation = None
@@ -188,7 +207,8 @@ async def chat(
         conversation = db.scalar(
             select(AssistantConversation)
             .where(
-                AssistantConversation.user_id == user.id, AssistantConversation.updated_at >= cutoff
+                AssistantConversation.user_id == user.id,
+                AssistantConversation.updated_at >= cutoff,
             )
             .order_by(AssistantConversation.updated_at.desc())
         )
@@ -237,7 +257,9 @@ async def chat(
                     "recommendation_score": p.recommendation_score,
                     "description": p.description,
                     "specs": p.specs,
-                    "reviews": [{"rating": r.rating, "content": r.content} for r in p.reviews],
+                    "reviews": [
+                        {"rating": r.rating, "content": r.content} for r in p.reviews
+                    ],
                 }
                 for p in products
             ]
@@ -249,7 +271,10 @@ async def chat(
             locked_quantity = (
                 db.scalar(
                     select(InventoryLock.quantity)
-                    .where(InventoryLock.product_id == product.id, InventoryLock.status == "active")
+                    .where(
+                        InventoryLock.product_id == product.id,
+                        InventoryLock.status == "active",
+                    )
                     .order_by(InventoryLock.expires_at.desc())
                     .limit(1)
                 )
@@ -264,7 +289,10 @@ async def chat(
             )
             if item is None:
                 item = CartItem(
-                    user_id=user.id, product_id=product.id, quantity=quantity, selected=True
+                    user_id=user.id,
+                    product_id=product.id,
+                    quantity=quantity,
+                    selected=True,
                 )
                 db.add(item)
             else:
@@ -298,7 +326,9 @@ async def chat(
                 forwarded_proto = request.headers.get("x-forwarded-proto")
                 forwarded_host = request.headers.get("x-forwarded-host")
                 if forwarded_host:
-                    scheme = (forwarded_proto or request.url.scheme).split(",")[0].strip()
+                    scheme = (
+                        (forwarded_proto or request.url.scheme).split(",")[0].strip()
+                    )
                     base = f"{scheme}://{forwarded_host.split(',')[0].strip()}"
                 else:
                     base = f"{request.url.scheme}://{request.url.netloc}"
@@ -323,7 +353,9 @@ async def chat(
                 forwarded_proto = request.headers.get("x-forwarded-proto")
                 forwarded_host = request.headers.get("x-forwarded-host")
                 if forwarded_host:
-                    scheme = (forwarded_proto or request.url.scheme).split(",")[0].strip()
+                    scheme = (
+                        (forwarded_proto or request.url.scheme).split(",")[0].strip()
+                    )
                     base = f"{scheme}://{forwarded_host.split(',')[0].strip()}"
                 else:
                     base = f"{request.url.scheme}://{request.url.netloc}"
@@ -339,7 +371,9 @@ async def chat(
         async with httpx.AsyncClient(timeout=60) as client:
             for _ in range(8):
                 response = await client.post(
-                    os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
+                    os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip(
+                        "/"
+                    )
                     + "/chat/completions",
                     headers={"Authorization": f"Bearer {key}"},
                     json={
@@ -357,7 +391,9 @@ async def chat(
                     break
                 for call in message["tool_calls"]:
                     name = call["function"]["name"]
-                    result = execute(name, json.loads(call["function"].get("arguments") or "{}"))
+                    result = execute(
+                        name, json.loads(call["function"].get("arguments") or "{}")
+                    )
                     api_messages.append(
                         {
                             "role": "tool",
@@ -372,12 +408,19 @@ async def chat(
         raise
     except httpx.HTTPError as exc:
         db.rollback()
-        raise HTTPException(status_code=502, detail="AI服务暂时不可用，请稍后重试") from exc
+        raise HTTPException(
+            status_code=502, detail="AI服务暂时不可用，请稍后重试"
+        ) from exc
     except (KeyError, ValueError, IndexError) as exc:
         db.rollback()
-        raise HTTPException(status_code=502, detail="AI服务返回了无法处理的结果") from exc
+        raise HTTPException(
+            status_code=502, detail="AI服务返回了无法处理的结果"
+        ) from exc
     history.extend(
-        [{"role": "user", "content": payload.message}, {"role": "assistant", "content": reply}]
+        [
+            {"role": "user", "content": payload.message},
+            {"role": "assistant", "content": reply},
+        ]
     )
     conversation.messages = history[-40:]
     conversation.updated_at = now
@@ -393,13 +436,17 @@ async def chat(
 @router.get("/checkout/{token}", response_model=OrderResponse)
 def checkout_order(token: str, db: Session = Depends(get_db)):
     checkout = db.get(CheckoutToken, token)
-    expires_at = checkout.expires_at if checkout and checkout.expires_at.tzinfo else None
+    expires_at = (
+        checkout.expires_at if checkout and checkout.expires_at.tzinfo else None
+    )
     if checkout is None or (
         expires_at or checkout.expires_at.replace(tzinfo=timezone.utc)
     ) <= datetime.now(timezone.utc):
         raise HTTPException(status_code=404, detail="支付链接已失效")
     order = db.scalar(
-        select(Order).options(selectinload(Order.items)).where(Order.id == checkout.order_id)
+        select(Order)
+        .options(selectinload(Order.items))
+        .where(Order.id == checkout.order_id)
     )
     if order is None:
         raise HTTPException(status_code=404, detail="订单不存在")
@@ -409,13 +456,17 @@ def checkout_order(token: str, db: Session = Depends(get_db)):
 @router.post("/checkout/{token}/pay", response_model=OrderResponse)
 def pay_checkout(token: str, db: Session = Depends(get_db)):
     checkout = db.get(CheckoutToken, token)
-    expires_at = checkout.expires_at if checkout and checkout.expires_at.tzinfo else None
+    expires_at = (
+        checkout.expires_at if checkout and checkout.expires_at.tzinfo else None
+    )
     if checkout is None or (
         expires_at or checkout.expires_at.replace(tzinfo=timezone.utc)
     ) <= datetime.now(timezone.utc):
         raise HTTPException(status_code=404, detail="支付链接已失效")
     order = db.scalar(
-        select(Order).options(selectinload(Order.items)).where(Order.id == checkout.order_id)
+        select(Order)
+        .options(selectinload(Order.items))
+        .where(Order.id == checkout.order_id)
     )
     if order is None:
         raise HTTPException(status_code=404, detail="订单不存在")

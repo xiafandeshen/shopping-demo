@@ -729,8 +729,8 @@ img {
   object-fit: cover;
 }
 .detail-placeholder {
-  font-width: 24px;
-  height: 24px;
+    font-size: 24px;
+    height: 100%;
 }
 .detail-copy {
   padding-top: 8px;

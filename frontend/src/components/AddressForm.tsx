@@ -16,9 +16,13 @@ const addressSchema = z.object({
 });
 type AddressValues = z.infer<typeof addressSchema>;
 
-type Props = { onCreated: (address: Address) => void; onCancel: () => void };
+type Props = {
+    saveAddress?: (values: AddressValues) => Promise<Address>;
+    onCreated: (address: Address) => void;
+    onCancel: () => void;
+};
 
-export function AddressForm({ onCreated, onCancel }: Props) {
+export function AddressForm({ onCreated, onCancel, saveAddress }: Props) {
     const form = useForm<AddressValues>({
         resolver: zodResolver(addressSchema),
     });
@@ -42,7 +46,9 @@ export function AddressForm({ onCreated, onCancel }: Props) {
             onSubmit={form.handleSubmit(async (values) => {
                 try {
                     onCreated(
-                        await createAddress({ ...values, is_default: true }),
+                        await (saveAddress
+                            ? saveAddress(values)
+                            : createAddress({ ...values, is_default: true })),
                     );
                 } catch (error) {
                     form.setError("root", { message: getErrorMessage(error) });

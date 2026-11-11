@@ -1,12 +1,17 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { AddressForm } from "../components/AddressForm";
+import { Button } from "../components/ui/button";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { getErrorMessage } from "../api/client";
-import { getOrder } from "../api/orders";
+import { addOrderAddress, getOrder } from "../api/orders";
 import { OrderActions } from "../components/OrderActions";
 import { formatPrice, ORDER_STATUS_LABELS } from "../types";
 
 export function OrderDetailPage() {
     const { id = "" } = useParams();
+    const [addingAddress, setAddingAddress] = useState(false);
+    const queryClient = useQueryClient();
     const order = useQuery({
         queryKey: ["order", id],
         queryFn: () => getOrder(id),
@@ -50,16 +55,43 @@ export function OrderDetailPage() {
                         <h2>收货信息</h2>
                     </div>
                 </div>
-                <div className="snapshot-address">
-                    <strong>
-                        {data.address_snapshot.recipient}
-                        <span>{data.address_snapshot.phone}</span>
-                    </strong>
-                    <p>
-                        {data.address_snapshot.region}{" "}
-                        {data.address_snapshot.detail}
-                    </p>
-                </div>
+                {!data.address_snapshot.recipient ? (
+                    addingAddress ? (
+                        <AddressForm
+                            saveAddress={async (values) => {
+                                const updated = await addOrderAddress(
+                                    id,
+                                    values,
+                                );
+                                queryClient.setQueryData(
+                                    ["order", id],
+                                    updated,
+                                );
+                                void queryClient.invalidateQueries({
+                                    queryKey: ["orders"],
+                                });
+                                return { ...values, id: 0, is_default: false };
+                            }}
+                            onCreated={() => setAddingAddress(false)}
+                            onCancel={() => setAddingAddress(false)}
+                        />
+                    ) : (
+                        <Button onClick={() => setAddingAddress(true)}>
+                            添加收货地址
+                        </Button>
+                    )
+                ) : (
+                    <div className="snapshot-address">
+                        <strong>
+                            {data.address_snapshot.recipient}
+                            <span>{data.address_snapshot.phone}</span>
+                        </strong>
+                        <p>
+                            {data.address_snapshot.region}{" "}
+                            {data.address_snapshot.detail}
+                        </p>
+                    </div>
+                )}
             </section>
             <section className="detail-section">
                 <div className="section-heading">

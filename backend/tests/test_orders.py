@@ -35,7 +35,9 @@ async def test_create_order_and_pay(logged_in_client):
     ).json()
     await client.post("/api/cart/items", json={"product_id": "P001", "quantity": 1})
 
-    order_response = await client.post("/api/orders", json={"address_id": address["id"]})
+    order_response = await client.post(
+        "/api/orders", json={"address_id": address["id"]}
+    )
     assert order_response.status_code == 201
     order = order_response.json()
     assert order["subtotal"] == 1890
@@ -63,13 +65,17 @@ async def test_list_orders_returns_orm_orders(logged_in_client):
         )
     ).json()
     await client.post("/api/cart/items", json={"product_id": "P001", "quantity": 1})
-    assert (await client.post("/api/orders", json={"address_id": address["id"]})).status_code == 201
+    assert (
+        await client.post("/api/orders", json={"address_id": address["id"]})
+    ).status_code == 201
 
     response = await client.get("/api/orders?page=1")
 
     assert response.status_code == 200
     assert response.json()["total"] == 1
-    assert response.json()["items"][0]["items"][0]["product_name"] == "Aero 無線藍牙耳機"
+    assert (
+        response.json()["items"][0]["items"][0]["product_name"] == "Aero 無線藍牙耳機"
+    )
 
 
 @pytest.mark.anyio
@@ -87,12 +93,18 @@ async def test_order_status_actions(logged_in_client):
         )
     ).json()
     await client.post("/api/cart/items", json={"product_id": "P001", "quantity": 1})
-    order = (await client.post("/api/orders", json={"address_id": address["id"]})).json()
+    order = (
+        await client.post("/api/orders", json={"address_id": address["id"]})
+    ).json()
 
-    cancelled = await client.post(f"/api/orders/{order['id']}/actions", json={"action": "cancel"})
+    cancelled = await client.post(
+        f"/api/orders/{order['id']}/actions", json={"action": "cancel"}
+    )
     assert cancelled.json()["status"] == "cancelled"
     assert (
-        await client.post(f"/api/orders/{order['id']}/actions", json={"action": "return"})
+        await client.post(
+            f"/api/orders/{order['id']}/actions", json={"action": "return"}
+        )
     ).status_code == 409
 
 
@@ -125,7 +137,9 @@ async def test_assistant_checkout_token_pays_without_login(logged_in_client):
     ).json()
     await client.post("/api/cart/items", json={"product_id": "P001", "quantity": 1})
     order = (
-        await client.post("/api/orders", json={"address_id": address["id"], "source": "ai"})
+        await client.post(
+            "/api/orders", json={"address_id": address["id"], "source": "ai"}
+        )
     ).json()
     token = token_urlsafe(32)
     app = client._transport.app
@@ -145,3 +159,38 @@ async def test_assistant_checkout_token_pays_without_login(logged_in_client):
     paid = await client.post(f"/api/assistant/checkout/{token}/pay")
     assert paid.status_code == 200
     assert paid.json()["status"] == "paid_pending_shipment"
+
+
+@pytest.mark.anyio
+async def test_ai_order_without_address_can_add_address(logged_in_client):
+    from sqlalchemy import select
+    from app.models import User
+    from app.routers.assistant import _create_order
+
+    client = logged_in_client
+    await client.post("/api/cart/items", json={"product_id": "P001", "quantity": 1})
+    with client._transport.app.state.session_factory() as db:
+        order, _ = _create_order(
+            db, db.scalar(select(User).where(User.login_id == "demo"))
+        )
+        order_id = order.id
+        assert order.address_snapshot == {}
+    payload = {
+        "recipient": "Lin",
+        "phone": "12345678",
+        "region": "台北",
+        "detail": "中山路",
+    }
+    response = await client.put(f"/api/orders/{order_id}/address", json=payload)
+    assert response.status_code == 200
+    assert response.json()["address_snapshot"] == payload
+    assert (await client.get(f"/api/orders/{order_id}")).json()[
+        "address_snapshot"
+    ] == payload
+    assert (
+        await client.put(f"/api/orders/{order_id}/address", json=payload)
+    ).status_code == 409
+    await client.post("/api/session/logout")
+    assert (
+        await client.put(f"/api/orders/{order_id}/address", json=payload)
+    ).status_code == 401
