@@ -5,10 +5,12 @@ import { addCartItem } from "../api/cart";
 import { getErrorMessage } from "../api/client";
 import { getProduct } from "../api/products";
 import { formatPrice } from "../types";
+import { useSessionStore } from "../stores/session";
 
 export function ProductPage() {
     const { id = "" } = useParams();
     const queryClient = useQueryClient();
+    const user = useSessionStore((state) => state.user);
     const product = useQuery({
         queryKey: ["product", id],
         queryFn: () => getProduct(id),
@@ -67,7 +69,13 @@ export function ProductPage() {
                     <button
                         className="primary-button detail-add"
                         disabled={item.stock <= 0 || add.isPending}
-                        onClick={() => add.mutate()}
+                        onClick={() => {
+                            if (!user) {
+                                window.dispatchEvent(new Event("open-login-dialog"));
+                                return;
+                            }
+                            add.mutate();
+                        }}
                     >
                         <ShoppingBag
                             data-icon="inline-start"

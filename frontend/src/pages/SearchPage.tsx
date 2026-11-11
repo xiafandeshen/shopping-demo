@@ -6,11 +6,13 @@ import { addCartItem } from "../api/cart";
 import { getErrorMessage } from "../api/client";
 import { searchProducts } from "../api/products";
 import { ProductGrid } from "../components/ProductGrid";
+import { useSessionStore } from "../stores/session";
 
 export function SearchPage() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
+    const user = useSessionStore((state) => state.user);
     const term = searchParams.get("q")?.trim() ?? "";
     const currentPage = Math.max(1, Number(searchParams.get("page") ?? 1));
     const [input, setInput] = useState(term);
@@ -88,6 +90,10 @@ export function SearchPage() {
                     <ProductGrid
                         products={results.data.items}
                         onAdd={async (id) => {
+                            if (!user) {
+                                window.dispatchEvent(new Event("open-login-dialog"));
+                                return;
+                            }
                             await add.mutateAsync(id);
                         }}
                     />

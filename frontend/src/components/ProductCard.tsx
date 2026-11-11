@@ -3,14 +3,20 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ShoppingBag } from "lucide-react";
 import { formatPrice, type Product } from "../types";
+import { useSessionStore } from "../stores/session";
 
 type Props = { product: Product; onAdd: (id: string) => Promise<void> };
 
 export function ProductCard({ product, onAdd }: Props) {
+    const user = useSessionStore((state) => state.user);
     const [adding, setAdding] = useState(false);
     const [added, setAdded] = useState(false);
 
     async function add() {
+        if (!user) {
+            window.dispatchEvent(new Event("open-login-dialog"));
+            return;
+        }
         setAdding(true);
         try {
             await onAdd(product.id);

@@ -6,11 +6,13 @@ import { addCartItem } from "../api/cart";
 import { getRecommended } from "../api/products";
 import { getErrorMessage } from "../api/client";
 import { ProductGrid } from "../components/ProductGrid";
+import { useSessionStore } from "../stores/session";
 
 export function HomePage() {
   const [query, setQuery] = useState("");
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const user = useSessionStore((state) => state.user);
   const products = useQuery({
     queryKey: ["recommended"],
     queryFn: getRecommended,
@@ -89,6 +91,10 @@ export function HomePage() {
           <ProductGrid
             products={products.data}
             onAdd={async (id) => {
+              if (!user) {
+                window.dispatchEvent(new Event("open-login-dialog"));
+                return;
+              }
               await add.mutateAsync(id);
             }}
           />
