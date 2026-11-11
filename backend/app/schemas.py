@@ -129,3 +129,17 @@ class OrderPageResponse(BaseModel):
 
 class OrderActionRequest(BaseModel):
     action: Literal["cancel", "return", "receive", "cancel_return"]
+
+
+class AssistantMessageRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=2000)
+
+
+class AssistantMessageResponse(BaseModel):
+    reply: str
+    messages: list[dict[str, str]]
+    checkout_url: str | None = None
+
+
+class CheckoutResponse(BaseModel):
+    order: OrderResponse

@@ -5,7 +5,7 @@ from typing import AsyncIterator
 from fastapi import FastAPI
 
 from app.database import Base, create_database
-from app.routers import addresses, cart, orders, products, session
+from app.routers import addresses, assistant, cart, orders, products, session
 
 DATABASE_URL = f"sqlite:///{Path(__file__).resolve().parents[1] / 'shopping.db'}"
 engine, session_factory = create_database(DATABASE_URL)
@@ -25,6 +25,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
 
     app = FastAPI(title="Shopping Demo API", lifespan=lifespan)
     app.include_router(products.router)
+    app.include_router(assistant.router)
     app.include_router(session.router)
     app.include_router(addresses.router)
     app.include_router(cart.router)

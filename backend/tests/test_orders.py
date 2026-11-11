@@ -17,10 +17,17 @@ def test_pricing_thresholds_and_ai_discount():
 @pytest.mark.anyio
 async def test_create_order_and_pay(logged_in_client):
     client = logged_in_client
-    address = (await client.post(
-        "/api/addresses",
-        json={"recipient": "Lin", "phone": "12345678", "region": "台北", "detail": "中山路 1 號"},
-    )).json()
+    address = (
+        await client.post(
+            "/api/addresses",
+            json={
+                "recipient": "Lin",
+                "phone": "12345678",
+                "region": "台北",
+                "detail": "中山路 1 號",
+            },
+        )
+    ).json()
     await client.post("/api/cart/items", json={"product_id": "P001", "quantity": 1})
 
     order_response = await client.post("/api/orders", json={"address_id": address["id"]})
@@ -39,10 +46,17 @@ async def test_create_order_and_pay(logged_in_client):
 @pytest.mark.anyio
 async def test_list_orders_returns_orm_orders(logged_in_client):
     client = logged_in_client
-    address = (await client.post(
-        "/api/addresses",
-        json={"recipient": "Lin", "phone": "12345678", "region": "台北", "detail": "中山路 1 號"},
-    )).json()
+    address = (
+        await client.post(
+            "/api/addresses",
+            json={
+                "recipient": "Lin",
+                "phone": "12345678",
+                "region": "台北",
+                "detail": "中山路 1 號",
+            },
+        )
+    ).json()
     await client.post("/api/cart/items", json={"product_id": "P001", "quantity": 1})
     assert (await client.post("/api/orders", json={"address_id": address["id"]})).status_code == 201
 
@@ -56,16 +70,73 @@ async def test_list_orders_returns_orm_orders(logged_in_client):
 @pytest.mark.anyio
 async def test_order_status_actions(logged_in_client):
     client = logged_in_client
-    address = (await client.post(
-        "/api/addresses",
-        json={"recipient": "Lin", "phone": "12345678", "region": "台北", "detail": "中山路 1 號"},
-    )).json()
+    address = (
+        await client.post(
+            "/api/addresses",
+            json={
+                "recipient": "Lin",
+                "phone": "12345678",
+                "region": "台北",
+                "detail": "中山路 1 號",
+            },
+        )
+    ).json()
     await client.post("/api/cart/items", json={"product_id": "P001", "quantity": 1})
     order = (await client.post("/api/orders", json={"address_id": address["id"]})).json()
 
     cancelled = await client.post(f"/api/orders/{order['id']}/actions", json={"action": "cancel"})
     assert cancelled.json()["status"] == "cancelled"
     assert (
-        (await client.post(f"/api/orders/{order['id']}/actions", json={"action": "return"})).status_code
-        == 409
-    )
+        await client.post(f"/api/orders/{order['id']}/actions", json={"action": "return"})
+    ).status_code == 409
+
+
+@pytest.mark.anyio
+async def test_assistant_requires_login(logged_in_client):
+    client = logged_in_client
+    await client.post("/api/session/logout")
+    response = await client.get("/api/assistant/conversation")
+    assert response.status_code == 401
+
+
+@pytest.mark.anyio
+async def test_assistant_checkout_token_pays_without_login(logged_in_client):
+    from datetime import datetime, timedelta, timezone
+    from secrets import token_urlsafe
+
+    from app.models import CheckoutToken
+
+    client = logged_in_client
+    address = (
+        await client.post(
+            "/api/addresses",
+            json={
+                "recipient": "Lin",
+                "phone": "12345678",
+                "region": "台北",
+                "detail": "中山路 1 號",
+            },
+        )
+    ).json()
+    await client.post("/api/cart/items", json={"product_id": "P001", "quantity": 1})
+    order = (
+        await client.post("/api/orders", json={"address_id": address["id"], "source": "ai"})
+    ).json()
+    token = token_urlsafe(32)
+    app = client._transport.app
+    with app.state.session_factory.begin() as db:
+        db.add(
+            CheckoutToken(
+                token=token,
+                order_id=order["id"],
+                expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
+            )
+        )
+    await client.post("/api/session/logout")
+
+    fetched = await client.get(f"/api/assistant/checkout/{token}")
+    assert fetched.status_code == 200
+    assert fetched.json()["source"] == "ai"
+    paid = await client.post(f"/api/assistant/checkout/{token}/pay")
+    assert paid.status_code == 200
+    assert paid.json()["status"] == "paid_pending_shipment"
