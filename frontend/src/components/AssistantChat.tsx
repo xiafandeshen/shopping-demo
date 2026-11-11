@@ -94,7 +94,8 @@ export function AssistantChat({
                 className={`assistant-message assistant-message-${message.role}`}
               >
                 {message.content
-                  .split(/(https?:\/\/\S+)/g)
+                  // Do not include sentence-closing punctuation in the href.
+                  .split(/(https?:\/\/[^\s)]+)/g)
                   .map((part, partIndex) =>
                     part.startsWith("http") ? (
                       <a

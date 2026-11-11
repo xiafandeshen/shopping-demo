@@ -4,7 +4,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -157,6 +157,7 @@ def get_conversation(user: User = Depends(get_current_user), db: Session = Depen
 @router.post("/message", response_model=AssistantMessageResponse)
 async def chat(
     payload: AssistantMessageRequest,
+    request: Request,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -267,7 +268,19 @@ async def chat(
         if name == "create_order":
             order, token = _create_order(db, user)
             last_order_id = order.id
-            base = os.getenv("FRONTEND_BASE_URL", "http://localhost:5173").rstrip("/")
+            configured_base = os.getenv("FRONTEND_BASE_URL")
+            if configured_base:
+                base = configured_base.rstrip("/")
+            else:
+                # Keep links usable outside local development when the frontend
+                # and API are served from the same origin.
+                forwarded_proto = request.headers.get("x-forwarded-proto")
+                forwarded_host = request.headers.get("x-forwarded-host")
+                if forwarded_host:
+                    scheme = (forwarded_proto or request.url.scheme).split(",")[0].strip()
+                    base = f"{scheme}://{forwarded_host.split(',')[0].strip()}"
+                else:
+                    base = f"{request.url.scheme}://{request.url.netloc}"
             checkout_url = f"{base}/checkout-link/{token}"
             return {
                 "order_id": order.id,
