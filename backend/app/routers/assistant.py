@@ -26,13 +26,13 @@ from app.schemas import AssistantMessageRequest, AssistantMessageResponse, Order
 from app.services.pricing import calculate_totals
 
 router = APIRouter(prefix="/api/assistant", tags=["assistant"])
-SYSTEM_PROMPT = """你是拾物商城AI购物助手。理解顾客需求，可先追问澄清商品、预算、关键词、数量；信息足够后调用 search_products，按搜索结果中的价格库存推荐分数描述特性评论筛选，每次逐件处理。必须得到用户明确授权购买后才调用 add_to_cart，再 create_order。只有用户清晰说‘直接帮我买’、‘直接下单并付款’等明确支付授权，才调用 pay_order；否则 create_order 后告知 checkout_url。无匹配商品要如实说明。不能编造商品。回复简体中文。"""
+SYSTEM_PROMPT = """你是拾物商城AI购物助手。理解顾客需求，可先追问澄清商品、预算、关键词、数量；信息足够后调用 search_products，按搜索结果中的价格库存推荐分数描述特性评论筛选，每次逐件处理。必须得到用户明确授权购买后才调用 add_to_cart，再 create_order。只有用户清晰说‘直接帮我买’、‘直接下单并付款’等明确支付授权，才调用 pay_order；否则 create_order 后告知 checkout_url。无匹配商品要如实说明。不能编造商品。提取搜索关键词时必须保留用户原文的语言和字形，不得翻译或进行繁简转换。例如用户说“想買藍牙耳機”，search_products 的 keywords 应为“藍牙耳機”，不能改成“蓝牙耳机”。回复使用简体中文的要求仅适用于自然语言回复，不适用于搜索关键词、商品名称等原文。"""
 TOOLS = [
     {
         "type": "function",
         "function": {
             "name": "search_products",
-            "description": "按需求和关键词搜索商品",
+            "description": "按需求和关键词搜索商品；关键词保留用户原文语言和繁简字形，不得翻译或繁简转换",
             "parameters": {
                 "type": "object",
                 "properties": {"keywords": {"type": "string"}},
@@ -151,7 +151,11 @@ def get_conversation(user: User = Depends(get_current_user), db: Session = Depen
         .order_by(AssistantConversation.updated_at.desc())
     )
     messages = conversation.messages if conversation else []
-    return {"reply": "", "messages": messages, "conversation_id": conversation.id if conversation else None}
+    return {
+        "reply": "",
+        "messages": messages,
+        "conversation_id": conversation.id if conversation else None,
+    }
 
 
 @router.post("/conversations", response_model=AssistantMessageResponse)
@@ -175,12 +179,18 @@ async def chat(
         raise HTTPException(status_code=503, detail="AI购物助手尚未配置 OPENAI_API_KEY")
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(hours=24)
-    conversation = db.get(AssistantConversation, payload.conversation_id) if payload.conversation_id else None
+    conversation = (
+        db.get(AssistantConversation, payload.conversation_id) if payload.conversation_id else None
+    )
     if conversation and conversation.user_id != user.id:
         conversation = None
     if conversation is None:
         conversation = db.scalar(
-            select(AssistantConversation).where(AssistantConversation.user_id == user.id, AssistantConversation.updated_at >= cutoff).order_by(AssistantConversation.updated_at.desc())
+            select(AssistantConversation)
+            .where(
+                AssistantConversation.user_id == user.id, AssistantConversation.updated_at >= cutoff
+            )
+            .order_by(AssistantConversation.updated_at.desc())
         )
     if conversation is None:
         conversation = AssistantConversation(user_id=user.id, messages=[])
@@ -373,7 +383,10 @@ async def chat(
     conversation.updated_at = now
     db.commit()
     return AssistantMessageResponse(
-        reply=reply, messages=conversation.messages, checkout_url=checkout_url, conversation_id=conversation.id
+        reply=reply,
+        messages=conversation.messages,
+        checkout_url=checkout_url,
+        conversation_id=conversation.id,
     )
 
 
