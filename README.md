@@ -4,7 +4,7 @@ React + FastAPI + SQLite 的购物流程演示，包含商品浏览、搜索、�
 
 ## 启动
 
-后端：
+后端：需要安装python环境 和 uv
 
 ```bash
 cd backend
@@ -19,7 +19,7 @@ uv run uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```bash
 cd frontend
 pnpm install
-NAPI_RS_FORCE_WASI=true pnpm run dev
+pnpm run dev
 ```
 
 访问 http://localhost:5173。点击顶部登录，再点击演示账号登录，无需密码。前端将 `/api` 请求代理到端口 8000。
@@ -34,11 +34,9 @@ uv run pytest -q
 ```bash
 cd frontend
 pnpm run lint
-NAPI_RS_FORCE_WASI=true pnpm test
-NAPI_RS_FORCE_WASI=true pnpm run build
+pnpm test
+pnpm run build
 ```
-
-当前机器运行 Rolldown 原生绑定会触发 SIGILL，因此使用官方 WASM 绑定；常规机器可尝试不设置该变量。
 
 ## 演示范围
 
