@@ -61,6 +61,11 @@ uv run python scripts/init_data.py --database-url sqlite:////tmp/shopping-demo.d
 
 ## AI购物助手
 
+使用购物助手 需要配置下面配置在backend/.env文件中：
+OPENAI_API_KEY=your-openai-api-key
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_MODEL=gpt-4o-mini
+
 待完成：
 锁定库存：依赖消息队列实现，暂未实现
 购买意图智能解析：依赖向量数据库，暂未实现，当前是简单的 包含匹配
