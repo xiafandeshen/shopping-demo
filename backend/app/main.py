@@ -3,11 +3,14 @@ from pathlib import Path
 from typing import AsyncIterator
 
 from fastapi import FastAPI
+from dotenv import load_dotenv
 
 from app.database import Base, create_database
 from app.routers import addresses, assistant, cart, orders, products, session
 
 DATABASE_URL = f"sqlite:///{Path(__file__).resolve().parents[1] / 'shopping.db'}"
+# Load backend/.env regardless of the working directory used to start uvicorn.
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 engine, session_factory = create_database(DATABASE_URL)
 
 
