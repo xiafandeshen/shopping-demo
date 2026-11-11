@@ -93,18 +93,20 @@ def _address(db: Session, user_id: int) -> Address | None:
     return address
 
 
-def _create_order(db: Session, user: User) -> Order:
+def _create_order(db: Session, user: User, quantities: dict[str, int]):
     address = _address(db, user.id)
     items = list(
         db.scalars(
             select(CartItem)
             .options(selectinload(CartItem.product))
-            .where(CartItem.user_id == user.id, CartItem.selected.is_(True))
+            .where(CartItem.user_id == user.id, CartItem.product_id.in_(quantities))
         ).all()
     )
     if not items:
         raise HTTPException(status_code=400, detail="购物车中没有待结算商品")
-    totals = calculate_totals([(i.product.price, i.quantity) for i in items], "ai")
+    totals = calculate_totals(
+        [(i.product.price, quantities[i.product_id]) for i in items], "ai"
+    )
     order = Order(
         id=secrets.token_hex(16),
         user_id=user.id,
@@ -130,14 +132,16 @@ def _create_order(db: Session, user: User) -> Order:
                 product_name=i.product.name,
                 image_url=i.product.image_url,
                 unit_price=i.product.price,
-                quantity=i.quantity,
+                quantity=quantities[i.product_id],
             )
             for i in items
         ],
     )
     db.add(order)
     for item in items:
-        db.delete(item)
+        item.quantity -= quantities[item.product_id]
+        if item.quantity == 0:
+            db.delete(item)
     db.flush()
     token = secrets.token_urlsafe(32)
     db.add(
@@ -224,6 +228,7 @@ async def chat(
     ]
     checkout_url = None
     last_order_id = None
+    assistant_quantities: dict[str, int] = {}
 
     def execute(name: str, args: dict):
         nonlocal checkout_url, last_order_id
@@ -302,7 +307,7 @@ async def chat(
                 db.add(item)
             else:
                 item.quantity += quantity
-                item.selected = True
+
             db.add(
                 InventoryLock(
                     user_id=user.id,
@@ -313,6 +318,9 @@ async def chat(
                 )
             )
             db.flush()
+            assistant_quantities[product.id] = (
+                assistant_quantities.get(product.id, 0) + quantity
+            )
             return {
                 "product_id": product.id,
                 "name": product.name,
@@ -320,7 +328,8 @@ async def chat(
                 "locked": True,
             }
         if name == "create_order":
-            order, token = _create_order(db, user)
+            order, token = _create_order(db, user, assistant_quantities)
+            assistant_quantities.clear()
             last_order_id = order.id
             configured_base = os.getenv("FRONTEND_BASE_URL")
             if configured_base:

@@ -95,14 +95,16 @@ export function CartDialog({ open, onClose }: Props) {
                                         type="checkbox"
                                         checked={item.selected}
                                         aria-label={`选择${item.product_name}`}
-                                        onChange={(event) =>
+                                        onChange={(event) => {
+                                            const selected =
+                                                event.currentTarget.checked;
                                             mutation.mutate(() =>
                                                 updateCartSelection(
                                                     item.id,
-                                                    event.target.checked,
+                                                    selected,
                                                 ),
-                                            )
-                                        }
+                                            );
+                                        }}
                                     />
                                     <div className="cart-thumb">
                                         {item.image_url ? (
