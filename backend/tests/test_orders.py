@@ -171,7 +171,7 @@ async def test_ai_order_without_address_can_add_address(logged_in_client):
     await client.post("/api/cart/items", json={"product_id": "P001", "quantity": 1})
     with client._transport.app.state.session_factory() as db:
         order, _ = _create_order(
-            db, db.scalar(select(User).where(User.login_id == "demo"))
+            db, db.scalar(select(User).where(User.login_id == "demo")), {"P001": 1}
         )
         order_id = order.id
         assert order.address_snapshot == {}
