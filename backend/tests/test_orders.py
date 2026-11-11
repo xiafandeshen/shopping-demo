@@ -13,6 +13,11 @@ def test_pricing_thresholds_and_ai_discount():
     assert ai.discount_amount == 145
     assert ai.payable_amount == 855
 
+    ai_with_shipping = calculate_totals([(999, 1)], "ai")
+    assert ai_with_shipping.discount_amount == 44
+    assert ai_with_shipping.shipping_amount == 0
+    assert ai_with_shipping.payable_amount == 955
+
 
 @pytest.mark.anyio
 async def test_create_order_and_pay(logged_in_client):
