@@ -68,11 +68,7 @@ export function AssistantChat({
   if (!open) return null;
   return (
     <section className="assistant-chat" aria-label="AI购物助手">
-      <header className="assistant-chat-header">
-        <div className="assistant-title">
-          <Sparkles aria-hidden="true" />
-          <strong>AI购物助手</strong>
-        </div>
+      {messages.length > 0 ? (
         <button
           className="assistant-new"
           onClick={() => {
@@ -87,6 +83,12 @@ export function AssistantChat({
         >
           新开对话
         </button>
+      ) : null}
+      <header className="assistant-chat-header">
+        <div className="assistant-title">
+          <Sparkles aria-hidden="true" />
+          <strong>AI购物助手</strong>
+        </div>
         <div className="assistant-promo">使用购物助手进行购物享95折</div>
         <button
           className="assistant-close"
