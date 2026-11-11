@@ -385,6 +385,7 @@ async def chat(
                 )
                 response.raise_for_status()
                 message = response.json()["choices"][0]["message"]
+                print(1111, message)
                 api_messages.append(message)
                 if not message.get("tool_calls"):
                     reply = message.get("content") or "有什么可以帮助您？"

@@ -14,7 +14,7 @@ uv run uvicorn app.main:app --host 127.0.0.1 --port 8000
 
 启动仅创建数据库表，不自动写入数据。首次使用请先执行下方初始化命令。
 
-前端：
+前端：需要安装node环境 和 pnpm
 
 ```bash
 cd frontend
@@ -58,3 +58,11 @@ uv run python scripts/init_data.py
 ```bash
 uv run python scripts/init_data.py --database-url sqlite:////tmp/shopping-demo.db
 ```
+
+## AI购物助手
+
+待完成：
+锁定库存：依赖消息队列实现，暂未实现
+购买意图智能解析：依赖向量数据库，暂未实现，当前是简单的 包含匹配
+
+使用方法：搜索 “我要购买2包咖啡豆”、“我要买一个耳機，直接完成支付”

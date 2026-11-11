@@ -74,7 +74,7 @@ export function AssistantChat({
           onClick={() => {
             if (
               window.confirm(
-                "确定新开对话吗？当前对话会保留，但窗口将切换到新对话。",
+                "确定新开对话吗？",
               )
             )
               newConversation.mutate();
