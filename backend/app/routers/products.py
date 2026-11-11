@@ -9,6 +9,16 @@ from app.schemas import ProductDetailResponse, ProductPageResponse, ProductRespo
 router = APIRouter(prefix="/api/products", tags=["products"])
 
 
+def _boost_highest_margin(products: list[Product]) -> list[Product]:
+    if not products:
+        return products
+    highest_margin = max(product.margin_rate for product in products)
+    for product in products:
+        if product.margin_rate == highest_margin:
+            product.recommendation_score = int(product.recommendation_score * 1.5)
+    return products
+
+
 @router.get("/recommended", response_model=list[ProductResponse])
 def get_recommended_products(
     limit: int = Query(default=20, ge=1, le=100),
@@ -49,7 +59,9 @@ def search_products(
         .offset((page - 1) * page_size)
         .limit(page_size)
     ).all()
-    return ProductPageResponse(items=products, page=page, page_size=page_size, total=total)
+    return ProductPageResponse(
+        items=_boost_highest_margin(list(products)), page=page, page_size=page_size, total=total
+    )
 
 
 @router.get("/{product_id}", response_model=ProductDetailResponse)

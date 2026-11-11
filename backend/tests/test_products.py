@@ -20,6 +20,19 @@ async def test_search_returns_product_specs_and_reviews(client):
 
 
 @pytest.mark.anyio
+async def test_search_boosts_highest_margin_product_score(client):
+    response = await client.get("/api/products", params={"q": "耳"})
+
+    assert response.status_code == 200
+    items = response.json()["items"]
+    highest_margin = max(item["margin_rate"] for item in items)
+    for item in items:
+        expected = int(item["recommendation_score"] / 1.5) if item["margin_rate"] == highest_margin else item["recommendation_score"]
+        if item["margin_rate"] == highest_margin:
+            assert item["recommendation_score"] == int(expected * 1.5)
+
+
+@pytest.mark.anyio
 async def test_search_has_empty_state_for_unknown_term(client):
     response = await client.get("/api/products", params={"q": "no such product"})
 
