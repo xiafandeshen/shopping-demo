@@ -151,7 +151,16 @@ def get_conversation(user: User = Depends(get_current_user), db: Session = Depen
         .order_by(AssistantConversation.updated_at.desc())
     )
     messages = conversation.messages if conversation else []
-    return {"reply": "", "messages": messages}
+    return {"reply": "", "messages": messages, "conversation_id": conversation.id if conversation else None}
+
+
+@router.post("/conversations", response_model=AssistantMessageResponse)
+def create_conversation(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    conversation = AssistantConversation(user_id=user.id, messages=[])
+    db.add(conversation)
+    db.commit()
+    db.refresh(conversation)
+    return {"reply": "", "messages": [], "conversation_id": conversation.id}
 
 
 @router.post("/message", response_model=AssistantMessageResponse)
@@ -166,11 +175,13 @@ async def chat(
         raise HTTPException(status_code=503, detail="AI购物助手尚未配置 OPENAI_API_KEY")
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(hours=24)
-    conversation = db.scalar(
-        select(AssistantConversation)
-        .where(AssistantConversation.user_id == user.id, AssistantConversation.updated_at >= cutoff)
-        .order_by(AssistantConversation.updated_at.desc())
-    )
+    conversation = db.get(AssistantConversation, payload.conversation_id) if payload.conversation_id else None
+    if conversation and conversation.user_id != user.id:
+        conversation = None
+    if conversation is None:
+        conversation = db.scalar(
+            select(AssistantConversation).where(AssistantConversation.user_id == user.id, AssistantConversation.updated_at >= cutoff).order_by(AssistantConversation.updated_at.desc())
+        )
     if conversation is None:
         conversation = AssistantConversation(user_id=user.id, messages=[])
         db.add(conversation)
@@ -350,7 +361,7 @@ async def chat(
     conversation.updated_at = now
     db.commit()
     return AssistantMessageResponse(
-        reply=reply, messages=conversation.messages, checkout_url=checkout_url
+        reply=reply, messages=conversation.messages, checkout_url=checkout_url, conversation_id=conversation.id
     )
 
 

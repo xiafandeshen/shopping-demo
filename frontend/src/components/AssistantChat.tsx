@@ -4,6 +4,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   getConversation,
   sendAssistantMessage,
+  createConversation,
   type AssistantMessage,
 } from "../api/assistant";
 import { getErrorMessage } from "../api/client";
@@ -26,17 +27,20 @@ export function AssistantChat({
     retry: false,
   });
   const [messages, setMessages] = useState<AssistantMessage[]>([]);
+  const [conversationId, setConversationId] = useState<number>();
   const [draft, setDraft] = useState("");
   const bottom = useRef<HTMLDivElement>(null);
   useEffect(() => {
     setMessages(conversation.data?.messages ?? []);
+    setConversationId(conversation.data?.conversation_id ?? undefined);
   }, [conversation.data]);
   useEffect(
     () => bottom.current?.scrollIntoView({ behavior: "smooth" }),
     [messages],
   );
   const send = useMutation({
-    mutationFn: sendAssistantMessage,
+    mutationFn: (message: string) =>
+      sendAssistantMessage(message, conversationId),
     onSuccess: (data) => {
       setMessages(data.messages);
       if (data.checkout_url)
@@ -44,6 +48,13 @@ export function AssistantChat({
           ...current.slice(0, -1),
           { role: "assistant", content: `${data.reply}\n${data.checkout_url}` },
         ]);
+    },
+  });
+  const newConversation = useMutation({
+    mutationFn: createConversation,
+    onSuccess: (data) => {
+      setConversationId(data.conversation_id ?? undefined);
+      setMessages([]);
     },
   });
   function submit(event: FormEvent) {
@@ -62,6 +73,20 @@ export function AssistantChat({
           <Sparkles aria-hidden="true" />
           <strong>AI购物助手</strong>
         </div>
+        <button
+          className="assistant-new"
+          onClick={() => {
+            if (
+              window.confirm(
+                "确定新开对话吗？当前对话会保留，但窗口将切换到新对话。",
+              )
+            )
+              newConversation.mutate();
+          }}
+          disabled={newConversation.isPending}
+        >
+          新开对话
+        </button>
         <div className="assistant-promo">使用购物助手进行购物享95折</div>
         <button
           className="assistant-close"

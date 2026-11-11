@@ -133,9 +133,11 @@ class OrderActionRequest(BaseModel):
 
 class AssistantMessageRequest(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
+    conversation_id: int | None = None
 
 
 class AssistantMessageResponse(BaseModel):
+    conversation_id: int | None = None
     reply: str
     messages: list[dict[str, str]]
     checkout_url: str | None = None
