@@ -198,19 +198,21 @@ img {
 }
 .assistant-new {
   position: absolute;
-  top: 22px;
-  left: -58px;
-  width: 58px;
-  min-height: 72px;
-  padding: 8px 6px;
+  top: 78px;
+  left: 0;
+  z-index: 1;
+  width: 30px;
+  min-height: 76px;
+  padding: 8px 5px;
   border: 1px solid var(--border);
   border-right: 0;
-  border-radius: 12px 0 0 12px;
+  border-radius: 0 6px 6px 0;
   background: #fff;
   color: var(--primary);
   font-size: 12px;
-  line-height: 1.35;
-  box-shadow: -6px 8px 20px rgba(24, 48, 34, 0.08);
+  line-height: 1.25;
+  writing-mode: vertical-rl;
+  box-shadow: 4px 6px 14px rgba(24, 48, 34, 0.08);
 }
 .assistant-new:disabled {
   cursor: wait;
