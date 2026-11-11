@@ -131,7 +131,7 @@ export function AssistantChat({
                         target="_blank"
                         rel="noreferrer"
                       >
-                        打开支付链接
+                        {part.includes("/orders/") ? "查看订单详情" : "打开支付链接"}
                       </a>
                     ) : (
                       part

@@ -306,6 +306,18 @@ async def chat(
                 return {"error": "订单不可支付"}
             order.status = OrderStatus.PAID_PENDING_SHIPMENT.value
             db.commit()
+            configured_base = os.getenv("FRONTEND_BASE_URL")
+            if configured_base:
+                base = configured_base.rstrip("/")
+            else:
+                forwarded_proto = request.headers.get("x-forwarded-proto")
+                forwarded_host = request.headers.get("x-forwarded-host")
+                if forwarded_host:
+                    scheme = (forwarded_proto or request.url.scheme).split(",")[0].strip()
+                    base = f"{scheme}://{forwarded_host.split(',')[0].strip()}"
+                else:
+                    base = f"{request.url.scheme}://{request.url.netloc}"
+            checkout_url = f"{base}/orders/{order.id}"
             return {
                 "order_id": order.id,
                 "status": order.status,

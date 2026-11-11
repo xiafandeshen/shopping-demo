@@ -68,7 +68,7 @@ img {
   min-height: 390px;
   display: flex;
   align-items: center;
-  overflow: hidden;
+  overflow: visible;
   background: #dce8df;
 }
 .home-banner::before {
@@ -255,6 +255,7 @@ img {
   flex-direction: column;
   gap: 12px;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 18px 14px;
 }
 .assistant-empty {
